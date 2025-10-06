@@ -12,38 +12,78 @@ pipeline {
     stages {
         stage('Audit tools') {
             steps {
-                sh '''
-                  git version
-                  java -version
-                  mvn -version
-                '''
+                script {
+                    if (isUnix()) {
+                        sh '''
+                            git version
+                            java -version
+                            mvn -version
+                        '''
+                    } else {
+                        bat '''
+                            git version
+                            java -version
+                            mvn -version
+                        '''
+                    }
+                }
             }
         }
 
         stage('Unit Test') {
             steps {
                 dir('./java-tomcat-sample') {
-                    sh '''
-                        echo "Executing Unit Tests..."
-                        mvn test
-                    '''
+                    script {
+                        if (isUnix()) {
+                            sh '''
+                                echo "Executing Unit Tests..."
+                                mvn test
+                            '''
+                        } else {
+                            bat '''
+                                echo "Executing Unit Tests..."
+                                mvn test
+                            '''
+                        }
+                    }
                 }
             }
         }
 
         stage('Build') {
-            environment {
-                VERSION_SUFFIX = "${sh(script:'if [ "${RELEASE}" = false ] ; then echo -n "${INT_VERSION}"ci:"${BUILD_NUMBER}"; else echo -n "${RELEASE_VERSION}":"${BUILD_NUMBER}"; fi', returnStdout: true)}"
-            }
             steps {
-                echo "Building version: ${INT_VERSION} with suffix: ${VERSION_SUFFIX}"
-                echo 'Mention your Application Build Code here!!!'
-                dir('./java-tomcat-sample') {
-                        sh '''
-                            mvn versions:set -DnewVersion="${VERSION_SUFFIX}"-SNAPSHOT
-                            mvn versions:update-child-modules
-                            mvn clean package
-                        '''
+                script {
+                    // Determine version suffix based on platform and release parameter
+                    if (isUnix()) {
+                        VERSION_SUFFIX = sh(
+                            script: """if [ "${params.RELEASE}" = "false" ]; then echo -n "${INT_VERSION}ci${BUILD_NUMBER}"; else echo -n "${RELEASE_VERSION}${BUILD_NUMBER}"; fi""",
+                            returnStdout: true
+                        ).trim()
+                    } else {
+                        VERSION_SUFFIX = bat(
+                            script: """@echo off\nif "${params.RELEASE}" == "false" (echo ${INT_VERSION}ci${BUILD_NUMBER}) else (echo ${RELEASE_VERSION}${BUILD_NUMBER})""",
+                            returnStdout: true
+                        ).trim()
+                    }
+                    
+                    echo "Building version: ${INT_VERSION} with suffix: ${VERSION_SUFFIX}"
+                    echo 'Mention your Application Build Code here!!!'
+                    
+                    dir('./java-tomcat-sample') {
+                        if (isUnix()) {
+                            sh """
+                                mvn versions:set -DnewVersion=${VERSION_SUFFIX}-SNAPSHOT
+                                mvn versions:update-child-modules
+                                mvn clean package
+                            """
+                        } else {
+                            bat """
+                                mvn versions:set -DnewVersion=${VERSION_SUFFIX}-SNAPSHOT
+                                mvn versions:update-child-modules
+                                mvn clean package
+                            """
+                        }
+                    }
                 }
             }
         }
@@ -52,7 +92,6 @@ pipeline {
             when {
                 expression { return params.RELEASE }
             }
-
             steps {
                 archiveArtifacts('**/*.war')
             }
