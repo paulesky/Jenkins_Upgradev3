@@ -1,40 +1,69 @@
 pipeline {
     agent any
     environment {
-        RELEASE='20.04'
+        RELEASE = '20.04'
     }
     stages {
         stage('Build') {
             environment {
-                LOG_LEVEL='INFO'
+                LOG_LEVEL = 'INFO'
             }
             parallel {
                 stage('linux-arm64') {
                     agent any
                     steps {
-                        echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL}..."
-                        sh 'sleep 10'
+                        script {
+                            if (isUnix()) {
+                                echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL} on Unix..."
+                                sh 'sleep 10'
+                            } else {
+                                echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL} on Windows..."
+                                bat 'timeout 10'
+                            }
+                        }
                     }
                 }
                 stage('linux-amd64') {
                     agent any
                     steps {
-                        echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL}..."
-                        sh 'sleep 20'
+                        script {
+                            if (isUnix()) {
+                                echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL} on Unix..."
+                                sh 'sleep 20'
+                            } else {
+                                echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL} on Windows..."
+                                bat 'timeout 20'
+                            }
+                        }
                     }
                 }
                 stage('windows-amd64') {
                     agent any
                     steps {
-                        echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL}..."
-                        sh 'sleep 30'
+                        script {
+                            if (isUnix()) {
+                                echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL} on Unix..."
+                                sh 'sleep 30'
+                            } else {
+                                echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL} on Windows..."
+                                bat 'timeout 30'
+                            }
+                        }
                     }
                 }
             }
         }
         stage('Test') {
             steps {
-                echo "Testing release ${RELEASE}..."
+                script {
+                    if (isUnix()) {
+                        echo "Testing release ${RELEASE} on Unix..."
+                        sh 'echo "Running tests..."'
+                    } else {
+                        echo "Testing release ${RELEASE} on Windows..."
+                        bat 'echo "Running tests..."'
+                    }
+                }
             }
         }
         stage('Deploy') {
@@ -46,13 +75,50 @@ pipeline {
                 }
             }
             steps {
-                echo "Deploying release ${RELEASE} to environment ${TARGET_ENVIRONMENT}"
+                script {
+                    if (isUnix()) {
+                        echo "Deploying release ${RELEASE} to environment ${TARGET_ENVIRONMENT} on Unix"
+                        sh "echo 'Deployment to ${TARGET_ENVIRONMENT} completed'"
+                    } else {
+                        echo "Deploying release ${RELEASE} to environment ${TARGET_ENVIRONMENT} on Windows"
+                        bat "echo Deployment to ${TARGET_ENVIRONMENT} completed"
+                    }
+                }
             }
         }        
     }
-    post{
+    post {
         always {
-             echo 'Prints whether deploy happened or not, success or failure'
+            script {
+                if (isUnix()) {
+                    sh 'echo "Pipeline completed - prints whether deploy happened or not, success or failure"'
+                } else {
+                    bat 'echo "Pipeline completed - prints whether deploy happened or not, success or failure"'
+                }
+            }
+        }
+        success {
+            script {
+                if (isUnix()) {
+                    sh 'echo "✅ Pipeline executed successfully!"'
+                } else {
+                    bat 'echo "✅ Pipeline executed successfully!"'
+                }
+            }
+        }
+        failure {
+            script {
+                if (isUnix()) {
+                    sh 'echo "❌ Pipeline execution failed!"'
+                } else {
+                    bat 'echo "❌ Pipeline execution failed!"'
+                }
+                emailext (
+                    subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                    body: "Check console output at ${env.BUILD_URL}",
+                    to: "team@example.com"
+                )
+            }
         }
     }
 }
