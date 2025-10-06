@@ -1,58 +1,54 @@
 pipeline {
     agent any
-
-    environment {
-        // Define environment variables here
-        MY_ENV_VAR = 'Custom Value'
-    }
-
+    
     stages {
         stage('Checkout') {
             steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build') {
+            steps {
                 script {
-                    // Clone the Git repository's master branch
-                    def gitRepoUrl = 'https://github.com/anshulc55/Jenkins_Upgradev3.git'
-
-                    checkout([$class: 'GitSCM', 
-                        branches: [[name: '*/master']], 
-                        userRemoteConfigs: [[url: gitRepoUrl]], 
-                        extensions: [[$class: 'CleanBeforeCheckout'], [$class: 'CloneOption', noTags: false, shallow: true, depth: 1]]
-                    ])
+                    if (isUnix()) {
+                        sh 'echo "Building on Unix/Linux"'
+                        sh 'ls -la'
+                        // Unix build commands
+                    } else {
+                        bat 'echo "Building on Windows"'
+                        bat 'dir'
+                        // Windows build commands
+                    }
                 }
             }
         }
-
-        stage('Build') {
-            steps {
-                // Build your application here (e.g., compile, package, etc.)
-                sh '''
-                ls
-                echo "In Build Step"
-                '''
-            }
-        }
-
+        
         stage('Test') {
             steps {
-                // Run your tests (e.g., unit tests, integration tests)
-                sh 'echo "In Test Step"'
+                script {
+                    if (isUnix()) {
+                        sh 'echo "Running tests on Unix/Linux"'
+                    } else {
+                        bat 'echo "Running tests on Windows"'
+                    }
+                }
             }
         }
-
+        
         stage('Deploy') {
             steps {
-                // Deploy your application to a target environment (e.g., staging, production)
-                sh 'echo "Value of ENV Varaible is "$MY_ENV_VAR""'
+                script {
+                    if (isUnix()) {
+                        sh 'echo "Deploying on Unix/Linux"'
+                    } else {
+                        bat 'echo "Deploying on Windows"'
+                    }
+                }
             }
         }
     }
-
-    post {
-        success {
-            // Actions to perform when the pipeline succeeds
-            echo 'Pipeline succeeded!'
-        }
-        failure {
+}
             // Actions to perform when the pipeline fails
             echo 'Pipeline failed!'
         }
