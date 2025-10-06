@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'maven:latest'
-            args '-u root'
-        }
-    }
+    agent any
     
     environment {
       VERSION = '0.1.0'
@@ -14,22 +9,42 @@ pipeline {
     stages {
       stage('Audit tools') {
         steps {
-          sh '''
-              java -version
-              mvn -version
-          '''
-          sh 'printenv'
-          sh 'ls -l $WORKSPACE'
+            script {
+                if (isUnix()) {
+                    sh '''
+                        java -version
+                        mvn -version
+                    '''
+                    sh 'printenv'
+                    sh 'ls -l $WORKSPACE'
+                } else {
+                    bat '''
+                        java -version
+                        mvn -version
+                    '''
+                    bat 'set'
+                    bat 'dir /B %WORKSPACE%'
+                }
+            }
         }
       }
 
       stage('Unit Test') {
         steps {
           dir('./java-tomcat-sample') {
-            sh '''
-              echo "Executing Unit Tests..."
-              mvn test
-          '''
+            script {
+                if (isUnix()) {
+                    sh '''
+                        echo "Executing Unit Tests..."
+                        mvn test
+                    '''
+                } else {
+                    bat '''
+                        echo "Executing Unit Tests..."
+                        mvn test
+                    '''
+                }
+            }
           }
         }
       }
@@ -38,17 +53,22 @@ pipeline {
         steps {
           echo "Building version: ${VERSION} with suffix: ${RELEASE_VERSION}"
           echo 'Mention your Application Build Code here!!!'
-          sh 'mvn -f java-tomcat-sample/pom.xml clean package'
+          script {
+              if (isUnix()) {
+                  sh 'mvn -f java-tomcat-sample/pom.xml clean package'
+              } else {
+                  bat 'mvn -f java-tomcat-sample/pom.xml clean package'
+              }
+          }
         }
       }
     }
 }
 
-
-
 /*
 Requirements -- 
 
+For Linux/Unix:
 1. Jenkins Docker PlugIns
     - Docker
     - Docker Pipeline
@@ -64,4 +84,25 @@ Requirements --
 
 5. Execute Docker using root User-
    args '-u root'
+
+For Windows:
+1. Jenkins Docker PlugIns
+    - Docker
+    - Docker Pipeline
+
+2. Install Docker Desktop on Windows machine
+   Link -- https://docs.docker.com/desktop/install/windows-install/
+
+3. Ensure Docker Desktop is running and configured
+
+4. Jenkins service must have permissions to access Docker
+
+Note: The original Docker agent configuration has been removed to make it cross-platform.
+If you want to use Docker on specific platforms, you can use conditional agents:
+ 
+agent {
+    node {
+        label isUnix() ? 'linux-docker-node' : 'windows-node'
+    }
+}
 */
