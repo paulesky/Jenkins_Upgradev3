@@ -7,21 +7,40 @@ pipeline {
     stages {
         stage('Audit tools') {
             steps {
-                sh '''
-                  git version
-                  java -version
-                  mvn -version
-                '''
+                script {
+                    if (isUnix()) {
+                        sh '''
+                            git version
+                            java -version
+                            mvn -version
+                        '''
+                    } else {
+                        bat '''
+                            git version
+                            java -version
+                            mvn -version
+                        '''
+                    }
+                }
             }
         }
 
         stage('Unit Test') {
             steps {
                 dir('./java-tomcat-sample') {
-                    sh '''
-                        echo "Executing Unit Tests..."
-                        mvn test
-                    '''
+                    script {
+                        if (isUnix()) {
+                            sh '''
+                                echo "Executing Unit Tests..."
+                                mvn test
+                            '''
+                        } else {
+                            bat '''
+                                echo "Executing Unit Tests..."
+                                mvn test
+                            '''
+                        }
+                    }
                 }
             }
         }
@@ -31,12 +50,22 @@ pipeline {
                 echo "Building version: ${VERSION} with suffix: ${RELEASE_VERSION}"
                 echo 'Mention your Application Build Code here!!!'
                 dir('./java-tomcat-sample') {
-                        sh '''
-                            mvn versions:set -DnewVersion="${VERSION}"-SNAPSHOT
-                            mvn versions:update-child-modules
-                            mvn clean package
-                        '''
+                    script {
+                        if (isUnix()) {
+                            sh '''
+                                mvn versions:set -DnewVersion="${VERSION}"-SNAPSHOT
+                                mvn versions:update-child-modules
+                                mvn clean package
+                            '''
+                        } else {
+                            bat '''
+                                mvn versions:set -DnewVersion="${VERSION}"-SNAPSHOT
+                                mvn versions:update-child-modules
+                                mvn clean package
+                            '''
+                        }
                     }
+                }
             }
         }
     }
